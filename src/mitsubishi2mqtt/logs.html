@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Logs Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #logWindow {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .timestamp {
+            color: #888;
+            margin-right: 10px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+
+        .disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Logs Viewer</h1>
+        <div id="connectionStatus" class="status disconnected">Déconnecté</div>
+        
+        <div class="controls">
+            <button onclick="clearLogs()">Effacer les logs</button>
+            <button onclick="reconnectWebSocket()">Reconnecter</button>
+        </div>
+
+        <div id="logWindow"></div>
+    </div>
+
+    <script>
+        let ws;
+        const logWindow = document.getElementById('logWindow');
+        const statusDiv = document.getElementById('connectionStatus');
+
+        function connectWebSocket() {
+            // Remplacez avec l'adresse IP de votre ESP32
+            ws = new WebSocket('ws://192.168.1.100:81');
+
+            ws.onopen = function() {
+                statusDiv.textContent = 'Connecté';
+                statusDiv.className = 'status connected';
+            };
+
+            ws.onclose = function() {
+                statusDiv.textContent = 'Déconnecté';
+                statusDiv.className = 'status disconnected';
+                // Tentative de reconnexion après 5 secondes
+                setTimeout(reconnectWebSocket, 5000);
+            };
+
+            ws.onmessage = function(event) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${event.data}`;
+                logWindow.appendChild(logEntry);
+                logWindow.scrollTop = logWindow.scrollHeight;
+            };
+        }
+
+        function clearLogs() {
+            logWindow.innerHTML = '';
+        }
+
+        function reconnectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            connectWebSocket();
+        }
+
+        // Connexion initiale
+        connectWebSocket();
+    </script>
+</body>
+</html>
