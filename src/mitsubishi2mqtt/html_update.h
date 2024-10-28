@@ -1,17 +1,22 @@
+const char UPDATE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>ESP32 Firmware Update</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mise à jour - Easydan Controller</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             background: #f0f0f0;
         }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
         .container {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -63,19 +68,36 @@
             background-color: #e8f5e9;
             color: #2e7d32;
         }
+        .back-button {
+            background-color: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 16px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .back-button:hover {
+            background-color: #555;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ESP32 Firmware Update</h1>
-        <form id="upload_form" enctype="multipart/form-data">
-            <input type="file" name="update" id="file" accept=".bin">
-            <button type="submit" class="button">Update Firmware</button>
+    <div class='container'>
+        <h1>Easydan Controller</h1>
+        <a href="/" class="back-button">← Retour</a>
+        <h2>Mise à jour du firmware</h2>
+        <form id='upload_form' enctype='multipart/form-data'>
+            <input type='file' name='update' id='file' accept='.bin'>
+            <button type='submit' class='button'>Update Firmware</button>
         </form>
-        <div class="progress-bar">
-            <div class="progress" id="progress"></div>
+        <div class='progress-bar'>
+            <div class='progress' id='progress'></div>
         </div>
-        <div id="status"></div>
+        <div id='status' class="connected"></div>
     </div>
 
     <script>
@@ -83,7 +105,7 @@
         const progress = document.getElementById('progress');
         const status = document.getElementById('status');
         const fileInput = document.getElementById('file');
-        const submitButton = form.querySelector('button[type="submit"]');
+        const submitButton = form.querySelector('button[type=\'submit\']');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -143,3 +165,4 @@
     </script>
 </body>
 </html>
+)rawliteral";
