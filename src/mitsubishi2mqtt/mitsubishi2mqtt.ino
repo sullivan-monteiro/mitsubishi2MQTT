@@ -12,6 +12,10 @@ AsyncWebServer server(80); // ESP32 web
 #include <WebSocketsServer.h>
 WebSocketsServer webSocket = WebSocketsServer(81);
 
+#include <ArduinoJson.h>
+#include <HeatPump.h> // SwiCago library: https://github.com/SwiCago/HeatPump
+
+HeatPump hp;
 // Paramètres WiFi
 const char *ssid = "reseau-maison";
 const char *password = "9vsKXMx$B9gKO1nY@zq15K";
@@ -65,6 +69,55 @@ void setup()
   server.begin();
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
+
+  hp.setPacketCallback(hpPacketDebug);
+}
+
+void hpPacketDebug(byte *packet, unsigned int length, const char *packetDirection)
+{
+  String message;
+  for (unsigned int idx = 0; idx < length; idx++)
+  {
+    if (packet[idx] < 16)
+    {
+      message += "0"; // pad single hex digits with a 0
+    }
+    message += String(packet[idx], HEX) + " ";
+  }
+
+  const size_t bufferSize = JSON_OBJECT_SIZE(10);
+  StaticJsonDocument<bufferSize> root;
+
+  root[packetDirection] = message;
+  String output;
+  serializeJson(root, output);
+  sendLog(output);
+}
+
+// Fonction pour convertir une chaîne en bytes hexadécimaux
+byte *stringToHexBytes(const char *str, size_t *length)
+{
+  // Calcule la longueur de la chaîne
+  size_t strLen = strlen(str);
+  // Alloue la mémoire pour les bytes (la moitié de la longueur car 2 caractères hex = 1 byte)
+  *length = strLen / 2;
+  byte *bytes = new byte[*length];
+
+  for (size_t i = 0; i < *length; i++)
+  {
+    // Prend deux caractères à la fois
+    char highNibble = str[i * 2];
+    char lowNibble = str[i * 2 + 1];
+
+    // Convertit les caractères en valeurs numériques
+    byte high = (highNibble >= 'A') ? (highNibble - 'A' + 10) : (highNibble - '0');
+    byte low = (lowNibble >= 'A') ? (lowNibble - 'A' + 10) : (lowNibble - '0');
+
+    // Combine les deux nibbles en un byte
+    bytes[i] = (high << 4) | low;
+  }
+
+  return bytes;
 }
 
 // Gestionnaire de mise à jour
@@ -172,16 +225,77 @@ void onWebSocketEvent(uint8_t client_num, WStype_t type, uint8_t *payload, size_
     Serial.printf("[%u] Déconnecté!\n", client_num);
     clientConnected = false;
     break;
+
   case WStype_CONNECTED:
     Serial.printf("[%u] Connecté!\n", client_num);
     clientConnected = true;
     break;
+
+  case WStype_TEXT:
+  {
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error)
+    {
+      Serial.print("Erreur parsing JSON: ");
+      Serial.println(error.c_str());
+      webSocket.sendTXT(client_num, "{\"error\": \"Format JSON invalide\"}");
+      return;
+    }
+
+    const char *command = doc["command"];
+    const char *messageToSend = doc["messageToSend"];
+
+    if (command)
+    {
+      Serial.printf("Commande reçue: %s\n", command);
+
+      if (strcmp(command, "connection") == 0)
+      {
+        // Traitement de la commande connection
+        sendLog("Commande connection reçue");
+        hp.connect(&Serial);
+      }
+      else if (strcmp(command, "mode") == 0)
+      {
+        // Traitement de la commande mode
+        sendLog("Commande mode reçue");
+      }
+      else if (strcmp(command, "manual-command") == 0 && messageToSend)
+      {
+        size_t byteLength;
+        byte *bytes = stringToHexBytes(messageToSend, &byteLength);
+
+        // Utilisation des bytes
+        hp.sendCustomPacket(bytes, byteLength);
+
+        // Debug: afficher les bytes
+        Serial.print("Bytes envoyés: ");
+        for (size_t i = 0; i < byteLength; i++)
+        {
+          if (bytes[i] < 0x10)
+            Serial.print("0");
+          Serial.print(bytes[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println();
+
+        // Libérer la mémoire
+        delete[] bytes;
+
+        String logMessage = "Commande hex envoyée: " + String(messageToSend);
+        sendLog(logMessage);
+      }
+    }
+    break;
+  }
   }
 }
 
 void loop()
 {
   webSocket.loop();
-
-  delay(10);
+  // hp.sync();
+  delay(100);
 }
